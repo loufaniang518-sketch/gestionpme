@@ -323,3 +323,297 @@
   <div class="modal">
     <h2>Ajouter un produit</h2>
     <div class="fg"><label>Nom du produit</label><input id="s-name" type="text" placeholder="ex: Riz Basmati 25kg"></div>
+    <div class="form-row">
+      <div class="fg"><label>Quantité</label><input id="s-qty" type="number" placeholder="0" min="0"></div>
+      <div class="fg"><label>Seuil minimum</label><input id="s-min" type="number" placeholder="0" min="0"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-stock')">Annuler</button>
+      <button class="btn primary" onclick="addStock()"><i class="ti ti-check"></i> Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENT -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <h2>Ajouter un client</h2>
+    <div class="fg"><label>Nom / Entreprise</label><input id="c-name" type="text" placeholder="ex: SARL Diallo"></div>
+    <div class="fg"><label>Téléphone</label><input id="c-tel" type="tel" placeholder="+221 77 000 00 00"></div>
+    <div class="fg"><label>Ville</label><input id="c-ville" type="text" placeholder="ex: Dakar"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-client')">Annuler</button>
+      <button class="btn primary" onclick="addClient()"><i class="ti ti-check"></i> Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FACTURE PDF -->
+<div class="modal-overlay" id="modal-invoice">
+  <div class="modal" style="width:460px;max-width:95vw">
+    <h2>Aperçu facture</h2>
+    <div id="modal-invoice-content" style="margin:1rem 0"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-invoice')">Fermer</button>
+      <button class="btn primary" onclick="toast('PDF téléchargé !')"><i class="ti ti-download"></i> Télécharger PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== SUPABASE CONFIG =====
+  const SUPABASE_URL = 'https://ovsmvyfslglvxpccaqgx.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_6p_YxOp2xXLetOSQkU4FPQ__yZWTw0m';
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ===== AUTH =====
+  async function login() {
+    const email = document.getElementById('auth-email').value;
+    const pass  = document.getElementById('auth-pass').value;
+    if (!email || !pass) { toast('Remplis email et mot de passe'); return; }
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { toast('Erreur : ' + error.message); return; }
+    showApp(data.user);
+  }
+
+  async function register() {
+    const email = document.getElementById('auth-email').value;
+    const pass  = document.getElementById('auth-pass').value;
+    if (!email || !pass) { toast('Remplis email et mot de passe'); return; }
+    const { data, error } = await sb.auth.signUp({ email, password: pass });
+    if (error) { toast('Erreur : ' + error.message); return; }
+    toast('Compte créé ! Vérifie ton email.');
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    document.getElementById('auth').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+
+  function showApp(user) {
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('u-name').textContent = user.email.split('@')[0];
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'});
+    document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+    loadDashboard();
+    loadFactures();
+    loadClients();
+    loadStocks();
+  }
+
+  // Auto-login si session active
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) showApp(data.session.user);
+  });
+
+  // ===== NAVIGATION =====
+  function nav(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (el) el.classList.add('active');
+    else {
+      const map = {'dashboard':0,'factures':1,'paiements':2,'stocks':3,'clients':4,'nouvelle-facture':1};
+      const items = document.querySelectorAll('.nav-item');
+      if (map[id] !== undefined) items[map[id]].classList.add('active');
+    }
+  }
+
+  // ===== DASHBOARD =====
+  async function loadDashboard() {
+    const { data: factures } = await sb.from('factures').select('*');
+    const { data: clients }  = await sb.from('clients').select('*');
+    const { data: stocks }   = await sb.from('stocks').select('*');
+
+    const ca = (factures || []).filter(f => f.statut === 'Payée').reduce((s, f) => s + (f.montant || 0), 0);
+    document.getElementById('stat-ca').textContent = ca.toLocaleString('fr-FR') + ' F';
+    document.getElementById('stat-factures').textContent = (factures || []).length;
+    document.getElementById('stat-clients').textContent = (clients || []).length;
+    document.getElementById('stat-stocks').textContent = (stocks || []).filter(s => s.quantite <= s.seuil_min).length;
+
+    // Dernières factures
+    const last = (factures || []).slice(-4).reverse();
+    document.getElementById('dash-factures').innerHTML = last.length ? `
+      <table><thead><tr><th>Client</th><th>Montant</th><th>Statut</th></tr></thead><tbody>
+      ${last.map(f => `<tr><td>${f.client}</td><td>${(f.montant||0).toLocaleString('fr-FR')} F</td><td><span class="status ${statusClass(f.statut)}">${f.statut}</span></td></tr>`).join('')}
+      </tbody></table>` : '<div class="loading">Aucune facture</div>';
+  }
+
+  // ===== FACTURES =====
+  async function loadFactures() {
+    const { data } = await sb.from('factures').select('*').order('id', { ascending: false });
+    document.getElementById('factures-list').innerHTML = (data && data.length) ? `
+      <table><thead><tr><th>Client</th><th>Date</th><th>Montant</th><th>Statut</th><th>Action</th></tr></thead><tbody>
+      ${data.map(f => `<tr>
+        <td><strong>${f.client}</strong></td>
+        <td>${f.date || '—'}</td>
+        <td><strong>${(f.montant||0).toLocaleString('fr-FR')} F</strong></td>
+        <td><span class="status ${statusClass(f.statut)}">${f.statut}</span></td>
+        <td><button class="btn" onclick="showInvoice('${f.client}','${(f.montant||0).toLocaleString('fr-FR')}','${f.date||''}')">PDF</button></td>
+      </tr>`).join('')}
+      </tbody></table>` : '<div class="loading">Aucune facture enregistrée</div>';
+  }
+
+  function statusClass(s) {
+    if (s === 'Payée') return 's-paid';
+    if (s === 'En attente') return 's-pending';
+    return 's-late';
+  }
+
+  function calcInvoice() {
+    const qty = parseFloat(document.getElementById('f-qty').value) || 0;
+    const pu  = parseFloat(document.getElementById('f-price').value) || 0;
+    const total = qty * pu;
+    const fmt = total.toLocaleString('fr-FR');
+    document.getElementById('f-total').textContent = fmt + ' FCFA';
+    document.getElementById('prev-client').textContent = document.getElementById('f-client').value || '—';
+    document.getElementById('prev-desc').textContent = document.getElementById('f-desc').value || '—';
+    document.getElementById('prev-qty').textContent = qty;
+    document.getElementById('prev-pu').textContent = pu.toLocaleString('fr-FR') + ' F';
+    document.getElementById('prev-total').textContent = fmt + ' F';
+    document.getElementById('prev-grand').textContent = fmt + ' FCFA';
+  }
+
+  async function saveFacture() {
+    const client  = document.getElementById('f-client').value.trim();
+    const date    = document.getElementById('f-date').value;
+    const desc    = document.getElementById('f-desc').value.trim();
+    const qty     = parseFloat(document.getElementById('f-qty').value) || 0;
+    const price   = parseFloat(document.getElementById('f-price').value) || 0;
+    const montant = qty * price;
+    if (!client) { toast('Indique le nom du client'); return; }
+    const { error } = await sb.from('factures').insert([{ client, date, description: desc, montant, statut: 'En attente' }]);
+    if (error) { toast('Erreur : ' + error.message); return; }
+    toast('Facture enregistrée !');
+    loadFactures();
+    loadDashboard();
+    nav('factures', null);
+  }
+
+  function showInvoice(client, amount, date) {
+    document.getElementById('modal-invoice-content').innerHTML = `
+      <div class="invoice-preview">
+        <div class="inv-header">
+          <div><div class="inv-title">FACTURE</div><div style="font-size:11px;color:#888;margin-top:3px">${date}</div></div>
+          <div style="text-align:right"><div style="font-weight:600;font-size:13px">Mon Entreprise</div><div style="font-size:11px;color:#888">Dakar, Sénégal</div></div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-bottom:12px">Facturé à : <span style="color:#222;font-weight:500">${client}</span></div>
+        <table class="inv-table"><thead><tr><th>Description</th><th>Total</th></tr></thead>
+        <tbody><tr><td>Prestation</td><td>${amount} FCFA</td></tr></tbody></table>
+        <div class="inv-total">Total : ${amount} FCFA</div>
+      </div>`;
+    openModal('modal-invoice');
+  }
+
+  // ===== CLIENTS =====
+  async function loadClients() {
+    const { data } = await sb.from('clients').select('*').order('id', { ascending: false });
+    document.getElementById('clients-list').innerHTML = (data && data.length) ? `
+      <table><thead><tr><th>Nom</th><th>Téléphone</th><th>Ville</th><th>CA total</th></tr></thead><tbody>
+      ${data.map(c => `<tr>
+        <td><strong>${c.nom}</strong></td>
+        <td>${c.telephone || '—'}</td>
+        <td>${c.ville || '—'}</td>
+        <td><strong>${(c.ca_total||0).toLocaleString('fr-FR')} F</strong></td>
+      </tr>`).join('')}
+      </tbody></table>` : '<div class="loading">Aucun client enregistré</div>';
+  }
+
+  async function addClient() {
+    const nom      = document.getElementById('c-name').value.trim();
+    const telephone = document.getElementById('c-tel').value.trim();
+    const ville    = document.getElementById('c-ville').value.trim();
+    if (!nom) { toast('Indique le nom du client'); return; }
+    const { error } = await sb.from('clients').insert([{ nom, telephone, ville, ca_total: 0 }]);
+    if (error) { toast('Erreur : ' + error.message); return; }
+    document.getElementById('c-name').value = '';
+    document.getElementById('c-tel').value = '';
+    document.getElementById('c-ville').value = '';
+    closeModal('modal-client');
+    toast('Client "' + nom + '" ajouté !');
+    loadClients();
+    loadDashboard();
+  }
+
+  // ===== STOCKS =====
+  async function loadStocks() {
+    const { data } = await sb.from('stocks').select('*').order('id', { ascending: false });
+    document.getElementById('stocks-list').innerHTML = (data && data.length) ? `
+      <table><thead><tr><th>Produit</th><th>Quantité</th><th>Seuil min.</th><th>Niveau</th><th>Statut</th></tr></thead><tbody>
+      ${data.map(s => {
+        const pct = s.seuil_min > 0 ? Math.min(100, Math.round((s.quantite / s.seuil_min) * 50)) : 100;
+        const color = pct > 60 ? 'var(--green)' : pct > 30 ? 'var(--amber)' : 'var(--red)';
+        const status = pct > 60 ? '<span class="status s-paid">OK</span>' : pct > 30 ? '<span class="status s-pending">Faible</span>' : '<span class="status s-late">Critique</span>';
+        return `<tr>
+          <td>${s.nom_produit}</td>
+          <td>${s.quantite}</td>
+          <td>${s.seuil_min}</td>
+          <td><div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${color}"></div></div></td>
+          <td>${status}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>` : '<div class="loading">Aucun produit en stock</div>';
+  }
+
+  async function addStock() {
+    const nom_produit = document.getElementById('s-name').value.trim();
+    const quantite    = parseInt(document.getElementById('s-qty').value) || 0;
+    const seuil_min   = parseInt(document.getElementById('s-min').value) || 0;
+    if (!nom_produit) { toast('Indique le nom du produit'); return; }
+    const { error } = await sb.from('stocks').insert([{ nom_produit, quantite, seuil_min }]);
+    if (error) { toast('Erreur : ' + error.message); return; }
+    document.getElementById('s-name').value = '';
+    document.getElementById('s-qty').value = '';
+    document.getElementById('s-min').value = '';
+    closeModal('modal-stock');
+    toast('Produit "' + nom_produit + '" ajouté !');
+    loadStocks();
+    loadDashboard();
+  }
+
+  // ===== PAIEMENTS =====
+  var selPay = 'wave';
+  function selectPay(m) {
+    selPay = m;
+    document.getElementById('opt-wave').classList.toggle('selected', m === 'wave');
+    document.getElementById('opt-om').classList.toggle('selected', m === 'om');
+  }
+  function sendPayment() {
+    const phone  = document.getElementById('pay-phone').value;
+    const amount = document.getElementById('pay-amount').value;
+    if (!phone || !amount) { toast('Remplis le numéro et le montant'); return; }
+    const method = selPay === 'wave' ? '🌊 Wave' : '🟠 Orange Money';
+    const row = `<tr><td>Nouveau client</td><td>${method}</td><td><strong>${parseInt(amount).toLocaleString('fr-FR')} F</strong></td></tr>`;
+    document.getElementById('pay-history').insertAdjacentHTML('afterbegin', row);
+    document.getElementById('pay-phone').value = '';
+    document.getElementById('pay-amount').value = '';
+    toast('Demande envoyée via ' + method + ' !');
+  }
+
+  // ===== MODALS =====
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.querySelectorAll('.modal-overlay').forEach(o => {
+    o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+  });
+
+  // ===== TOAST =====
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // Live preview
+  document.addEventListener('input', e => {
+    if (['f-client','f-desc','f-qty','f-price'].includes(e.target.id)) calcInvoice();
+  });
+</script>
+</body>
+</html>
