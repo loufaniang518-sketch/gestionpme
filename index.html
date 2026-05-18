@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bichri GestionPME</title>
+<title>GestionPME — Tableau de bord</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -19,59 +18,76 @@
     --text: #1A1917; --text2: #6B6963; --text3: #9A9890;
     --border: rgba(0,0,0,0.09); --border2: rgba(0,0,0,0.15);
     --radius: 10px; --radius-lg: 14px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 0.5px rgba(0,0,0,0.07);
   }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; overflow: hidden; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; height: 100vh; overflow: hidden; }
+
+  /* AUTH */
   #auth { display: flex; align-items: center; justify-content: center; height: 100vh; }
   .auth-wrap { width: 360px; }
-  .auth-logo { font-size: 22px; font-weight: 600; text-align: center; margin-bottom: 2rem; }
+  .auth-logo { font-size: 26px; font-weight: 600; text-align: center; margin-bottom: 2rem; letter-spacing: -0.5px; }
   .auth-logo span { color: var(--green); }
-  .auth-card { background: var(--bg2); border-radius: var(--radius-lg); padding: 2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
-  .auth-tabs { display: flex; margin-bottom: 1.5rem; border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border2); }
-  .auth-tab { flex: 1; padding: 8px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--bg); color: var(--text2); transition: all .15s; }
-  .auth-tab.active { background: var(--green); color: #fff; }
+  .auth-card { background: var(--bg2); border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow); }
+  .auth-sub { font-size: 13px; color: var(--text2); text-align: center; margin-bottom: 1.5rem; }
   .field { margin-bottom: 1rem; }
   .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
   .field input { width: 100%; padding: 10px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 14px; color: var(--text); background: var(--bg); outline: none; transition: border-color .15s; }
   .field input:focus { border-color: var(--green); }
-  .btn-auth { width: 100%; padding: 11px; background: var(--green); color: #fff; border: none; border-radius: var(--radius); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
-  .code-info { font-size: 11px; background: var(--green-light); color: var(--green-dark); border-radius: 8px; padding: 8px 10px; margin-top: 10px; text-align: center; }
+  .btn-auth { width: 100%; padding: 11px; background: var(--green); color: #fff; border: none; border-radius: var(--radius); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s; }
+  .btn-auth:hover { background: var(--green-dark); }
+  .auth-hint { font-size: 11px; color: var(--text3); text-align: center; margin-top: 1rem; }
+
+  /* LAYOUT */
   #app { display: none; height: 100vh; }
   .layout { display: flex; height: 100%; }
+
+  /* SIDEBAR */
   .sidebar { width: 210px; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; padding: 1rem 0; }
-  .s-logo { padding: 0 1rem 1rem; font-size: 14px; font-weight: 600; border-bottom: 0.5px solid var(--border); margin-bottom: .75rem; }
+  .s-logo { padding: 0 1.125rem 1rem; font-size: 17px; font-weight: 600; border-bottom: 0.5px solid var(--border); margin-bottom: .75rem; }
   .s-logo span { color: var(--green); }
-  .s-user { padding: .5rem 1rem .875rem; border-bottom: 0.5px solid var(--border); margin-bottom: .5rem; }
+  .s-user { padding: .5rem 1.125rem .875rem; border-bottom: 0.5px solid var(--border); margin-bottom: .5rem; }
   .s-user-name { font-size: 13px; font-weight: 500; }
-  .s-user-role { font-size: 11px; color: var(--text3); }
+  .s-user-role { font-size: 11px; color: var(--text3); margin-top: 1px; }
   .s-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 .5rem; }
   .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text2); transition: all .12s; }
   .nav-item:hover { background: var(--bg3); color: var(--text); }
   .nav-item.active { background: var(--green-light); color: var(--green-dark); font-weight: 500; }
   .nav-item i { font-size: 17px; }
   .s-bottom { padding: 1rem .5rem 0; border-top: 0.5px solid var(--border); }
-  .s-logout { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text3); }
+  .s-logout { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text3); transition: all .12s; }
   .s-logout:hover { color: var(--red); background: var(--red-light); }
+
+  /* MAIN */
   .main { flex: 1; overflow-y: auto; background: var(--bg); }
   .page { display: none; padding: 1.5rem; }
   .page.active { display: block; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 8px; }
-  .topbar h1 { font-size: 18px; font-weight: 600; }
-  .topbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .12s; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .topbar h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .topbar-right { display: flex; gap: 8px; }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .12s; }
   .btn:hover { background: var(--bg3); }
   .btn.primary { background: var(--green); color: #fff; border-color: var(--green); }
   .btn.primary:hover { background: var(--green-dark); }
-  .btn.danger { background: var(--red-light); color: var(--red); border-color: transparent; }
-  .btn.amber { background: var(--amber-light); color: #854F0B; border-color: transparent; }
+
+  /* METRICS */
   .metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 1.5rem; }
   .metric { background: var(--bg2); border-radius: var(--radius-lg); padding: 1.125rem; border: 0.5px solid var(--border); }
   .metric-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
-  .metric-value { font-size: 22px; font-weight: 600; }
-  .metric-trend { font-size: 11px; margin-top: 4px; color: var(--green); }
+  .metric-value { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  .metric-trend { font-size: 11px; margin-top: 4px; }
+  .trend-up { color: var(--green); }
+  .trend-down { color: var(--red); }
+  .trend-warn { color: var(--amber); }
+
+  /* SECTION */
   .section { background: var(--bg2); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 1.25rem; margin-bottom: 1.25rem; }
-  .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+  .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
   .section-head h2 { font-size: 14px; font-weight: 600; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+
+  /* TABLE */
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { text-align: left; font-size: 11px; color: var(--text2); padding: 0 10px 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
   td { padding: 10px; border-top: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
@@ -80,14 +96,26 @@
   .s-paid { background: var(--green-light); color: var(--green-dark); }
   .s-pending { background: var(--amber-light); color: #854F0B; }
   .s-late { background: var(--red-light); color: #A32D2D; }
+
+  /* CHART */
+  .chart { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding-top: 10px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; border-radius: 4px 4px 0 0; }
+  .bar-lbl { font-size: 10px; color: var(--text3); }
+
+  /* STOCK BAR */
   .stock-bar { height: 6px; background: var(--bg3); border-radius: 4px; margin-top: 5px; }
   .stock-fill { height: 100%; border-radius: 4px; }
+
+  /* FORM */
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
   .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
   .fg label { font-size: 12px; font-weight: 500; color: var(--text2); }
-  .fg input, .fg select, .fg textarea { padding: 9px 11px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 13px; color: var(--text); background: var(--bg); outline: none; }
+  .fg input, .fg select, .fg textarea { padding: 9px 11px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 13px; color: var(--text); background: var(--bg); outline: none; transition: border-color .15s; }
   .fg input:focus, .fg select:focus { border-color: var(--green); }
   .fg textarea { resize: vertical; min-height: 70px; }
+
+  /* INVOICE */
   .invoice-preview { background: #fff; border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.5rem; font-size: 12px; }
   .inv-header { display: flex; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 2px solid var(--green); }
   .inv-title { font-size: 24px; font-weight: 600; color: var(--green); }
@@ -95,36 +123,29 @@
   .inv-table th { background: var(--green-light); padding: 8px 10px; text-align: left; font-size: 11px; color: var(--green-dark); font-weight: 500; }
   .inv-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
   .inv-total { text-align: right; font-weight: 600; font-size: 14px; color: var(--green-dark); margin-top: 8px; }
+
+  /* PAYMENT */
   .pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .pay-option { border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; cursor: pointer; text-align: center; transition: all .15s; }
+  .pay-option:hover { border-color: var(--green); }
   .pay-option.selected { border-color: var(--green); background: var(--green-light); }
   .pay-icon { font-size: 30px; margin-bottom: 6px; }
   .pay-name { font-size: 13px; font-weight: 600; }
   .pay-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* MODAL */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal { background: var(--bg2); border-radius: var(--radius-lg); padding: 1.5rem; width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
+  .modal { background: var(--bg2); border-radius: var(--radius-lg); padding: 1.5rem; width: 380px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
   .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 1.25rem; }
   .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; max-width: 300px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* LOADING */
   .loading { text-align: center; padding: 2rem; color: var(--text3); font-size: 13px; }
-  .import-zone { border: 2px dashed var(--border2); border-radius: var(--radius-lg); padding: 2rem; text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 1rem; }
-  .import-zone:hover { border-color: var(--green); background: var(--green-light); }
-  .import-zone i { font-size: 32px; color: var(--green); margin-bottom: 8px; display: block; }
-  .import-zone p { font-size: 13px; color: var(--text2); }
-  .import-zone small { font-size: 11px; color: var(--text3); }
-  .scan-box { background: var(--bg3); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
-  .scan-box i { font-size: 48px; color: var(--green); }
-  .scan-result { background: var(--green-light); border-radius: var(--radius); padding: 10px; margin-top: 10px; font-size: 13px; color: var(--green-dark); display: none; }
-  .code-box { background: var(--bg3); border-radius: var(--radius); padding: 12px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
-  .code-val { font-family: monospace; font-size: 16px; font-weight: 600; color: var(--green-dark); letter-spacing: 2px; }
-  .expiry-badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
-  .expiry-ok { background: var(--green-light); color: var(--green-dark); }
-  .expiry-warn { background: var(--amber-light); color: #854F0B; }
-  .expiry-expired { background: var(--red-light); color: #A32D2D; }
-  .template-btn { display: block; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 8px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; font-size: 12px; transition: all .12s; }
-  .template-btn:hover { background: var(--green-light); border-color: var(--green); }
 </style>
 </head>
 <body>
@@ -132,24 +153,13 @@
 <!-- AUTH -->
 <div id="auth">
   <div class="auth-wrap">
-    <div class="auth-logo">Bichri Gestion<span>PME</span></div>
+    <div class="auth-logo">Gestion<span>PME</span></div>
     <div class="auth-card">
-      <div class="auth-tabs">
-        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Connexion</div>
-        <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Créer un compte</div>
-      </div>
-      <div id="form-login">
-        <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="votre@email.sn"></div>
-        <div class="field"><label>Mot de passe</label><input type="password" id="auth-pass" placeholder="Mot de passe"></div>
-        <button class="btn-auth" onclick="login()">Se connecter</button>
-      </div>
-      <div id="form-register" style="display:none">
-        <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="votre@email.sn"></div>
-        <div class="field"><label>Mot de passe</label><input type="password" id="reg-pass" placeholder="Minimum 6 caractères"></div>
-        <div class="field"><label>Code d'accès</label><input type="text" id="reg-code" placeholder="Ex: BICHRI-ABC123" style="text-transform:uppercase"></div>
-        <button class="btn-auth" onclick="register()">Créer mon compte</button>
-        <div class="code-info">🔑 Le code d'accès vous est fourni après paiement</div>
-      </div>
+      <p class="auth-sub">Connectez-vous à votre espace</p>
+      <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="votre@email.sn"></div>
+      <div class="field"><label>Mot de passe</label><input type="password" id="auth-pass" placeholder="Mot de passe"></div>
+      <button class="btn-auth" onclick="login()">Se connecter</button>
+      <p class="auth-hint">Pas encore de compte ? <span style="color:var(--green);cursor:pointer" onclick="register()">Créer un compte</span></p>
     </div>
   </div>
 </div>
@@ -158,10 +168,10 @@
 <div id="app">
   <div class="layout">
     <div class="sidebar">
-      <div class="s-logo">Bichri Gestion<span>PME</span></div>
+      <div class="s-logo">Gestion<span>PME</span></div>
       <div class="s-user">
-        <div class="s-user-name" id="u-name">...</div>
-        <div class="s-user-role" id="u-role">Gérant</div>
+        <div class="s-user-name" id="u-name">Chargement...</div>
+        <div class="s-user-role">Gérant principal</div>
       </div>
       <div class="s-nav">
         <div class="nav-item active" onclick="nav('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Tableau de bord</div>
@@ -169,34 +179,47 @@
         <div class="nav-item" onclick="nav('paiements',this)"><i class="ti ti-device-mobile"></i> Paiements</div>
         <div class="nav-item" onclick="nav('stocks',this)"><i class="ti ti-package"></i> Stocks</div>
         <div class="nav-item" onclick="nav('clients',this)"><i class="ti ti-users"></i> Clients</div>
-        <div class="nav-item" onclick="nav('import',this)"><i class="ti ti-file-import"></i> Import données</div>
-        <div class="nav-item" id="nav-admin" style="display:none" onclick="nav('abonnements',this)"><i class="ti ti-key"></i> Abonnements</div>
       </div>
       <div class="s-bottom">
         <div class="s-logout" onclick="logout()"><i class="ti ti-logout"></i> Déconnexion</div>
       </div>
     </div>
+
     <div class="main">
 
       <!-- DASHBOARD -->
       <div id="dashboard" class="page active">
         <div class="topbar"><h1>Tableau de bord</h1><span style="font-size:12px;color:var(--text2)" id="dash-date"></span></div>
         <div class="metrics">
-          <div class="metric"><div class="metric-label">Chiffre d'affaires</div><div class="metric-value" id="stat-ca">—</div><div class="metric-trend">Factures payées</div></div>
-          <div class="metric"><div class="metric-label">Factures</div><div class="metric-value" id="stat-factures">—</div><div class="metric-trend">Total émises</div></div>
-          <div class="metric"><div class="metric-label">Clients</div><div class="metric-value" id="stat-clients">—</div><div class="metric-trend">Enregistrés</div></div>
-          <div class="metric"><div class="metric-label">Stock critique</div><div class="metric-value" id="stat-stocks">—</div><div class="metric-trend" style="color:var(--red)">À surveiller</div></div>
+          <div class="metric"><div class="metric-label">Chiffre d'affaires</div><div class="metric-value" id="stat-ca">—</div><div class="metric-trend trend-up">Total factures payées</div></div>
+          <div class="metric"><div class="metric-label">Factures</div><div class="metric-value" id="stat-factures">—</div><div class="metric-trend trend-warn">Total émises</div></div>
+          <div class="metric"><div class="metric-label">Clients</div><div class="metric-value" id="stat-clients">—</div><div class="metric-trend trend-up">Enregistrés</div></div>
+          <div class="metric"><div class="metric-label">Produits stock</div><div class="metric-value" id="stat-stocks">—</div><div class="metric-trend trend-down">À surveiller</div></div>
         </div>
-        <div class="section">
-          <div class="section-head"><h2>Dernières factures</h2><button class="btn" onclick="nav('factures',null)">Voir tout</button></div>
-          <div id="dash-factures"><div class="loading">Chargement...</div></div>
+        <div class="two-col">
+          <div class="section">
+            <div class="section-head"><h2>Revenus mensuels</h2></div>
+            <div class="chart">
+              <div class="bar-wrap"><div class="bar" style="height:50%;background:#9FE1CB"></div><div class="bar-lbl">Jan</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:60%;background:#9FE1CB"></div><div class="bar-lbl">Fév</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:45%;background:#9FE1CB"></div><div class="bar-lbl">Mar</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:68%;background:#9FE1CB"></div><div class="bar-lbl">Avr</div></div>
+              <div class="bar-wrap"><div class="bar" style="height:85%;background:var(--green)"></div><div class="bar-lbl">Mai</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-head"><h2>Dernières factures</h2></div>
+            <div id="dash-factures"><div class="loading">Chargement...</div></div>
+          </div>
         </div>
       </div>
 
       <!-- FACTURES -->
       <div id="factures" class="page">
         <div class="topbar"><h1>Factures</h1><button class="btn primary" onclick="nav('nouvelle-facture',null)"><i class="ti ti-plus"></i> Nouvelle facture</button></div>
-        <div class="section"><div id="factures-list"><div class="loading">Chargement...</div></div></div>
+        <div class="section">
+          <div id="factures-list"><div class="loading">Chargement...</div></div>
+        </div>
       </div>
 
       <!-- NOUVELLE FACTURE -->
@@ -208,32 +231,34 @@
           </div>
         </div>
         <div class="two-col">
-          <div class="section">
-            <div class="section-head"><h2>Informations</h2></div>
-            <div class="form-row">
-              <div class="fg"><label>Client</label><input type="text" id="f-client" placeholder="Nom du client"></div>
-              <div class="fg"><label>Date</label><input type="date" id="f-date"></div>
-            </div>
-            <div class="fg"><label>Description</label><textarea id="f-desc" placeholder="Détail de la prestation..."></textarea></div>
-            <div class="form-row">
-              <div class="fg"><label>Quantité</label><input type="number" id="f-qty" value="1" oninput="calcInvoice()"></div>
-              <div class="fg"><label>Prix unitaire (FCFA)</label><input type="number" id="f-price" value="0" oninput="calcInvoice()"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:0.5px solid var(--border)">
-              <span style="font-size:13px;color:var(--text2)">Total</span>
-              <span id="f-total" style="font-size:18px;font-weight:600;color:var(--green)">0 FCFA</span>
+          <div>
+            <div class="section">
+              <div class="section-head"><h2>Informations</h2></div>
+              <div class="form-row">
+                <div class="fg"><label>Client</label><input type="text" id="f-client" placeholder="Nom du client"></div>
+                <div class="fg"><label>Date</label><input type="date" id="f-date"></div>
+              </div>
+              <div class="fg"><label>Description</label><textarea id="f-desc" placeholder="Détail de la prestation..."></textarea></div>
+              <div class="form-row">
+                <div class="fg"><label>Quantité</label><input type="number" id="f-qty" value="1" oninput="calcInvoice()"></div>
+                <div class="fg"><label>Prix unitaire (FCFA)</label><input type="number" id="f-price" value="0" oninput="calcInvoice()"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:0.5px solid var(--border)">
+                <span style="font-size:13px;color:var(--text2)">Total</span>
+                <span id="f-total" style="font-size:18px;font-weight:600;color:var(--green)">0 FCFA</span>
+              </div>
             </div>
           </div>
           <div class="section">
             <div class="section-head"><h2>Aperçu</h2></div>
             <div class="invoice-preview">
               <div class="inv-header">
-                <div><div class="inv-title">FACTURE</div><div style="font-size:11px;color:#888;margin-top:3px">Nouvelle</div></div>
-                <div style="text-align:right"><div style="font-weight:600;font-size:13px">Bichri GestionPME</div><div style="font-size:11px;color:#888">Sénégal</div></div>
+                <div><div class="inv-title">FACTURE</div><div style="font-size:11px;color:#888;margin-top:3px" id="prev-num">Nouvelle · Aujourd'hui</div></div>
+                <div style="text-align:right"><div style="font-weight:600;font-size:13px">Mon Entreprise</div><div style="font-size:11px;color:#888">Dakar, Sénégal</div></div>
               </div>
               <div style="font-size:11px;color:#888;margin-bottom:12px">Facturé à : <span id="prev-client" style="color:#222;font-weight:500">—</span></div>
               <table class="inv-table">
-                <thead><tr><th>Description</th><th>Qté</th><th>Prix</th><th>Total</th></tr></thead>
+                <thead><tr><th>Description</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr></thead>
                 <tbody><tr><td id="prev-desc">—</td><td id="prev-qty">1</td><td id="prev-pu">0 F</td><td id="prev-total">0 F</td></tr></tbody>
               </table>
               <div class="inv-total">Total : <span id="prev-grand">0 FCFA</span></div>
@@ -250,13 +275,51 @@
             <div class="section-head"><h2>Envoyer une demande</h2></div>
             <div class="pay-grid">
               <div class="pay-option selected" id="opt-wave" onclick="selectPay('wave')">
-                <div class="pay-icon">🌊</div><div class="pay-name">Wave</div><div class="pay-desc">+221771649505</div>
+                <div class="pay-icon">🌊</div><div class="pay-name">Wave</div><div class="pay-desc">Instantané · 1% frais</div>
               </div>
               <div class="pay-option" id="opt-om" onclick="selectPay('om')">
-                <div class="pay-icon">🟠</div><div class="pay-name">Orange Money</div><div class="pay-desc">Réseau étendu</div>
+                <div class="pay-icon">🟠</div><div class="pay-name">Orange Money</div><div class="pay-desc">Réseau étendu · 1.5%</div>
               </div>
             </div>
             <div class="fg"><label>Numéro du client</label><input type="tel" id="pay-phone" placeholder="+221 77 000 00 00"></div>
             <div class="fg"><label>Montant (FCFA)</label><input type="number" id="pay-amount" placeholder="0"></div>
-            <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="sendPayment()"><i class="ti ti-send"></i> Envoyer demande</button>
-            <button class="btn amber
+            <button class="btn primary" style="width:100%" onclick="sendPayment()"><i class="ti ti-send"></i> Envoyer la demande</button>
+          </div>
+          <div class="section">
+            <div class="section-head"><h2>Historique</h2></div>
+            <table>
+              <thead><tr><th>Client</th><th>Méthode</th><th>Montant</th></tr></thead>
+              <tbody id="pay-history">
+                <tr><td>SARL Diallo</td><td>🌊 Wave</td><td><strong>320 000 F</strong></td></tr>
+                <tr><td>Ndiaye SARL</td><td>🟠 Orange Money</td><td><strong>470 000 F</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOCKS -->
+      <div id="stocks" class="page">
+        <div class="topbar"><h1>Stocks</h1><button class="btn primary" onclick="openModal('modal-stock')"><i class="ti ti-plus"></i> Ajouter produit</button></div>
+        <div class="section">
+          <div id="stocks-list"><div class="loading">Chargement...</div></div>
+        </div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div id="clients" class="page">
+        <div class="topbar"><h1>Clients</h1><button class="btn primary" onclick="openModal('modal-client')"><i class="ti ti-plus"></i> Ajouter client</button></div>
+        <div class="section">
+          <div id="clients-list"><div class="loading">Chargement...</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STOCK -->
+<div class="modal-overlay" id="modal-stock">
+  <div class="modal">
+    <h2>Ajouter un produit</h2>
+    <div class="fg"><label>Nom du produit</label><input id="s-name" type="text" placeholder="ex: Riz Basmati 25kg"></div>
