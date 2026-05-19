@@ -1,0 +1,38 @@
+{
+  "name": "Bichri GestionPME",
+  "short_name": "Bichri PME",
+  "description": "Application de gestion pour PME sénégalaises",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F2EC",
+  "theme_color": "#1D9E75",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "lang": "fr",
+  "shortcuts": [
+    {
+      "name": "Nouvelle facture",
+      "url": "/?page=nouvelle-facture",
+      "description": "Créer une nouvelle facture"
+    },
+    {
+      "name": "Stocks",
+      "url": "/?page=stocks",
+      "description": "Voir les stocks"
+    }
+  ]
+}
