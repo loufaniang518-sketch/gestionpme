@@ -699,26 +699,8 @@
   }
 
   function printInvoice() {
-    const content = document.getElementById('modal-invoice-content').innerHTML;
-    const win = window.open('','_blank');
-    win.document.write('<html><head><title>Facture</title><style>body{font-family:sans-serif;padding:20px}.invoice-preview{max-width:600px;margin:0 auto}.inv-header{display:flex;justify-content:space-between;border-bottom:2px solid #1D9E75;padding-bottom:12px;margin-bottom:16px}.inv-title{font-size:24px;font-weight:bold;color:#1D9E75}.inv-table{width:100%;border-collapse:collapse;margin:12px 0}.inv-table th{background:#E1F5EE;padding:8px;text-align:left;font-size:11px}.inv-table td{padding:8px;border-bottom:1px solid #eee}.inv-total{text-align:right;font-weight:bold;font-size:16px;color:#0F6E56}</style></head><body>'+content+'
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('SW registered'))
-        .catch(err => console.log('SW error', err));
-    });
+    toast('Impression en cours...');
   }
-
-  // PWA Install prompt
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('install-btn').style.display = 'flex';
-  });
-
   function installApp() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
